@@ -42,7 +42,6 @@ type file struct {
 	CompiledOnServers []int    //Servers this file has been compiled on
 	IsCompiled        bool
 	Replicated        chan struct{} //Channel to signal file replication
-	ready             chan struct{}
 }
 
 //wasCompiledOn checks if f was compiled on the server whose id is id

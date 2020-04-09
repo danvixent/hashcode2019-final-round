@@ -73,7 +73,6 @@ func initVars(data *[]string) {
 			struc.CompileTime, _ = strconv.Atoi(tmp[1])
 			struc.ReplicationTime, _ = strconv.Atoi(tmp[2])
 			struc.Deps = strings.Split(lines[i+1], " ")[1:]
-			struc.ready = make(chan struct{}, 1)
 			if canReplicate(struc) {
 				struc.Replicated = make(chan struct{})
 			}
@@ -97,15 +96,6 @@ func traverse(file *file) {
 		traverse(files[dep])
 	}
 	fchan <- file
-}
-
-func deliver(f *file) {
-	select {
-	case <-f.Replicated:
-		return
-	default:
-		fchan <- f
-	}
 }
 
 func servers() {
