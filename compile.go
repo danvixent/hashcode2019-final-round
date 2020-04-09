@@ -21,40 +21,36 @@ func canReplicate(f *file) bool {
 
 //Compile simulates compilation
 func Compile(f *file, serverID int) {
-	if f.Replicated != nil {
-		compileAndReplicate(f, serverID)
-		return
+	if f.Replicated != nil { //possible reason for abnormal behaviour
+		select {
+		case f.pick <- struct{}{}:
+			compileAndReplicate(f, serverID)
+		case <-f.Replicated:
+			return
+		}
 	}
-	compileWithoutReplication(f, serverID)
+
+	if !f.wasCompiledOn(serverID) {
+		compileWithoutReplication(f, serverID)
+	}
 }
 
 //compileAndReplicate compiles the files and then replicates it to all servers
 func compileAndReplicate(f *file, serverID int) {
-	f.Lock()
-	defer f.Unlock()
 	time.Sleep((time.Duration((f.CompileTime + f.ReplicationTime) / 1000000000)) * time.Millisecond)
 	f.IsCompiled = true
-	select {
-	case <-f.Replicated:
-		return //do nothing
-	default:
-		close(f.Replicated) //signal that this file has been replicated
-		f.CompiledOnServers = append(f.CompiledOnServers, serverID)
-	}
+	close(f.Replicated) //signal that this file has been replicated
+	f.CompiledOnServers = append(f.CompiledOnServers, serverID)
 	addStep()
 }
 
 //compileWithoutReplication compiles the file, but doesn't replicate it
 func compileWithoutReplication(f *file, serverID int) {
-	if f.wasCompiledOn(serverID) {
-		return
-	}
-
 	time.Sleep((time.Duration(f.CompileTime / 1000000000)) * time.Millisecond)
-	f.Lock()
+	token <- struct{}{}
 	f.IsCompiled = true
 	f.CompiledOnServers = append(f.CompiledOnServers, serverID)
-	f.Unlock()
+	<-token
 	addStep()
 }
 

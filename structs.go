@@ -14,6 +14,7 @@ var (
 	fchan     chan *file       //fchan sends file pointer to server routine
 	token     chan struct{}    //token prevents concurrent access to steps and files
 	wg        sync.WaitGroup   //wg allows waiting for the server routines
+	send      sync.WaitGroup   //send allows waiting for sender routine
 )
 
 //The constant defining special Replication cases
@@ -29,12 +30,12 @@ func clear() {
 	files = make(map[string]*file)
 	fchan = make(chan *file)
 	token = make(chan struct{}, 1)
-	runtime.GC()
+	go runtime.GC() //save time
 }
 
 //The file struct fully represents a file and all its provided properties
 type file struct {
-	sync.RWMutex
+	sync.Mutex
 	Name              string   //The Name of this Fiile
 	CompileTime       int      //Time to compile file
 	ReplicationTime   int      //Time to replicate file
@@ -42,12 +43,13 @@ type file struct {
 	CompiledOnServers []int    //Servers this file has been compiled on
 	IsCompiled        bool
 	Replicated        chan struct{} //Channel to signal file replication
+	pick              chan struct{}
 }
 
 //wasCompiledOn checks if f was compiled on the server whose id is id
 func (f *file) wasCompiledOn(id int) bool {
-	f.RLock()
-	defer f.RUnlock()
+	token <- struct{}{}
+	defer func() { <-token }()
 	for _, val := range f.CompiledOnServers {
 		if val == id {
 			return true

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -14,6 +15,13 @@ func init() {
 }
 
 func main() {
+	stt := time.Now()
+	// create output directory
+	err := os.Mkdir("outputs", os.ModePerm)
+	if err != nil {
+		fmt.Printf("Could not create outputs directory: %v\n", err)
+		os.Exit(3)
+	}
 	// Read the `input` directory so that we don't have to
 	// modify the code whenever we want to test other inputs
 	filepath.Walk("inputs", func(path string, info os.FileInfo, err error) error {
@@ -34,6 +42,7 @@ func main() {
 		}
 		return nil
 	})
+	fmt.Println("Time", time.Since(stt))
 }
 
 //extract the file lines into a slice
@@ -74,7 +83,8 @@ func initVars(data *[]string) {
 			struc.ReplicationTime, _ = strconv.Atoi(tmp[2])
 			struc.Deps = strings.Split(lines[i+1], " ")[1:]
 			if canReplicate(struc) {
-				struc.Replicated = make(chan struct{})
+				struc.Replicated = make(chan struct{}, 1)
+				struc.pick = make(chan struct{}, 1)
 			}
 			token <- struct{}{} //acquire token
 			files[struc.Name] = struc
@@ -88,6 +98,7 @@ func start() {
 	for _, target := range targets {
 		traverse(files[target])
 	}
+	send.Wait()
 	close(fchan)
 }
 
@@ -95,7 +106,12 @@ func traverse(file *file) {
 	for _, dep := range file.Deps {
 		traverse(files[dep])
 	}
-	fchan <- file
+	send.Add(1)
+	//sender routine
+	go func() {
+		defer send.Done()
+		fchan <- file
+	}()
 }
 
 func servers() {
@@ -114,13 +130,6 @@ func servers() {
 
 //Print needed output to file
 func printToFile(path string) {
-	// create output directory
-	err := os.Mkdir("outputs", os.ModePerm)
-	if err != nil {
-		fmt.Printf("Could not create outputs directory: %v\n", err)
-		os.Exit(3)
-	}
-
 	outFile := path[7:8]
 	outFile = "outputs/" + outFile + ".out"
 
