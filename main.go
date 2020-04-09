@@ -75,7 +75,6 @@ func initVars(data *[]string) {
 	for i := 1; i < len(lines)-alpha[1]; i = i + 2 {
 		wg.Add(1)
 		go func(i int) {
-			defer wg.Done()
 			tmp := strings.Split(lines[i], " ")
 			struc := &file{}
 			struc.Name = tmp[0]
@@ -89,6 +88,7 @@ func initVars(data *[]string) {
 			token <- struct{}{} //acquire token
 			files[struc.Name] = struc
 			<-token //release token
+			wg.Done()
 		}(i)
 	}
 	wg.Wait()

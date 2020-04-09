@@ -11,7 +11,7 @@ import (
 //the example output in the pdf.
 func canReplicate(f *file) bool {
 	var ratio float64
-	ratio = float64(f.ReplicationTime) / float64(f.CompileTime)
+	ratio = float64(f.ReplicationTime / f.CompileTime)
 
 	if ratio > cond {
 		return false
@@ -38,7 +38,6 @@ func Compile(f *file, serverID int) {
 //compileAndReplicate compiles the files and then replicates it to all servers
 func compileAndReplicate(f *file, serverID int) {
 	time.Sleep((time.Duration((f.CompileTime + f.ReplicationTime) / 1000000000)) * time.Millisecond)
-	f.IsCompiled = true
 	close(f.Replicated) //signal that this file has been replicated
 	f.CompiledOnServers = append(f.CompiledOnServers, serverID)
 	addStep()
@@ -47,10 +46,9 @@ func compileAndReplicate(f *file, serverID int) {
 //compileWithoutReplication compiles the file, but doesn't replicate it
 func compileWithoutReplication(f *file, serverID int) {
 	time.Sleep((time.Duration(f.CompileTime / 1000000000)) * time.Millisecond)
-	token <- struct{}{}
-	f.IsCompiled = true
+	tok <- struct{}{}
 	f.CompiledOnServers = append(f.CompiledOnServers, serverID)
-	<-token
+	<-tok
 	addStep()
 }
 
