@@ -12,9 +12,9 @@ var (
 	targets   []string         //targets stores the names of target files
 	files     map[string]*file //files maps file name to the file's pointer
 
-	fchan chan *file    //fchan sends file pointer to server routine
-	token chan struct{} //token prevents concurrent access to steps and files
-	tok   chan struct{}
+	fchan chan *file     //fchan sends file pointer to server routine
+	token chan struct{}  //token prevents concurrent access to steps and files
+	tok   chan struct{}  //tok prevents concurrent access to (file).CompileddOnServers
 	wg    sync.WaitGroup //wg allows waiting for the server routines
 	send  sync.WaitGroup //send allows waiting for sender routine
 )
